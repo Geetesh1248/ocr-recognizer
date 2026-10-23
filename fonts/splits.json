@@ -1,0 +1,136 @@
+{
+  "train_families": {
+    "dejavu_sans": [
+      "DejaVuSans.ttf",
+      "DejaVuSans-Bold.ttf",
+      "DejaVuSans-Oblique.ttf",
+      "DejaVuSans-BoldOblique.ttf"
+    ],
+    "dejavu_serif": [
+      "DejaVuSerif.ttf",
+      "DejaVuSerif-Bold.ttf",
+      "DejaVuSerif-Italic.ttf",
+      "DejaVuSerif-BoldItalic.ttf"
+    ],
+    "dejavu_sans_mono": [
+      "DejaVuSansMono.ttf",
+      "DejaVuSansMono-Bold.ttf",
+      "DejaVuSansMono-Oblique.ttf",
+      "DejaVuSansMono-BoldOblique.ttf"
+    ],
+    "computer_modern_mono": [
+      "cmtt10.ttf"
+    ],
+    "stix": [
+      "STIXGeneral.ttf",
+      "STIXGeneralBol.ttf",
+      "STIXGeneralItalic.ttf",
+      "STIXGeneralBolIta.ttf"
+    ],
+    "roboto": [
+      "Roboto-Variable.ttf"
+    ],
+    "open_sans": [
+      "OpenSans-Variable.ttf"
+    ],
+    "courier_prime": [
+      "CourierPrime-Regular.ttf",
+      "CourierPrime-Bold.ttf",
+      "CourierPrime-Italic.ttf"
+    ],
+    "cutive_mono": [
+      "CutiveMono-Regular.ttf"
+    ],
+    "inconsolata": [
+      "Inconsolata-Variable.ttf"
+    ],
+    "libre_baskerville": [
+      "LibreBaskerville-Variable.ttf"
+    ],
+    "merriweather": [
+      "Merriweather-Variable.ttf"
+    ],
+    "pt_serif": [
+      "PTSerif-Regular.ttf"
+    ],
+    "crimson_text": [
+      "CrimsonText-Regular.ttf",
+      "CrimsonText-Bold.ttf",
+      "CrimsonText-Italic.ttf"
+    ],
+    "eb_garamond": [
+      "EBGaramond-Variable.ttf"
+    ],
+    "cormorant_garamond": [
+      "CormorantGaramond-Variable.ttf"
+    ],
+    "playfair_display": [
+      "PlayfairDisplay-Variable.ttf"
+    ],
+    "lato": [
+      "Lato-Regular.ttf",
+      "Lato-Bold.ttf",
+      "Lato-Italic.ttf"
+    ],
+    "source_sans": [
+      "SourceSans3-Variable.ttf"
+    ],
+    "pt_sans": [
+      "PTSans-Regular.ttf"
+    ],
+    "arimo": [
+      "Arimo-Variable.ttf"
+    ],
+    "montserrat": [
+      "Montserrat-Variable.ttf"
+    ],
+    "inter": [
+      "Inter-Variable.ttf"
+    ],
+    "raleway": [
+      "Raleway-Variable.ttf"
+    ],
+    "nunito": [
+      "Nunito-Variable.ttf"
+    ],
+    "special_elite": [
+      "SpecialElite-Regular.ttf"
+    ],
+    "vt323": [
+      "VT323-Regular.ttf"
+    ],
+    "cousine": [
+      "Cousine-Regular.ttf"
+    ],
+    "space_mono": [
+      "SpaceMono-Regular.ttf",
+      "SpaceMono-Bold.ttf"
+    ],
+    "caveat": [
+      "Caveat-Variable.ttf"
+    ],
+    "indie_flower": [
+      "IndieFlower-Regular.ttf"
+    ],
+    "shadows_into_light": [
+      "ShadowsIntoLight-Regular.ttf"
+    ]
+  },
+  "val_families": {
+    "lora": [
+      "Lora-Variable.ttf"
+    ],
+    "source_code_pro": [
+      "SourceCodePro-Variable.ttf"
+    ],
+    "noto_sans": [
+      "NotoSans-Variable.ttf"
+    ],
+    "noto_serif": [
+      "NotoSerif-Variable.ttf"
+    ],
+    "fira_mono": [
+      "FiraMono-Regular.ttf"
+    ]
+  }
+}

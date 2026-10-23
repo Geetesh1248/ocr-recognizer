@@ -1,0 +1,41 @@
+{
+    "dpi": 150,
+    "max_bytes": 20971520,
+    "max_pages": 30,
+    "max_pixels": 16000000,
+    "cpu_threads": 2,
+    "preparation": {
+        "deskew": true,
+        "max_deskew_degrees": 7,
+        "contrast": true,
+        "denoise": true,
+        "perspective": true,
+        "orientation_checkpoint": null,
+        "orientation_min_score": 0.8
+    },
+    "detector": {
+        "line_orientation_checkpoint": null,
+        "line_orientation_min_score": 0.8,
+        "checkpoint": "models/detector_20epochs.pt",
+        "pixel_threshold": 0.5,
+        "region_threshold": 0.6,
+        "min_area": 10,
+        "expand_ratio": 1.5,
+        "duplicate_iou": 0.8,
+        "max_regions": 512,
+        "max_crop_pixels": 32000000,
+        "annotation_level": "word"
+    },
+    "recognizer": {
+        "checkpoint": "models/recognizer.pt",
+        "alphabet": "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ .,:;!?'-\"()/\\[]{}+=%&@#_$*<>|",
+        "height": 32,
+        "max_width": 1024
+    },
+    "layout": {
+        "column_gap": 30
+    },
+    "tables": {
+        "min_area": 1000
+    }
+}

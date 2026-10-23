@@ -1,0 +1,45 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=20mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+\tikzset{step/.style={draw=blue!60!black,fill=blue!5,rounded corners,text width=10cm,align=center,minimum height=13mm,font=\small},arrow/.style={-{Latex},thick}}
+\begin{document}
+
+\begin{center}\LARGE\bfseries Increment 1: Our page preparation\end{center}
+\textbf{Automatic runtime path}
+\begin{center}\begin{tikzpicture}[node distance=8mm]
+\node[step] (n0) {Open a local PDF or image};
+\node[step,below=of n0] (n1) {Render pages and normalize colour/background};
+\draw[arrow] (n0) -- (n1);
+\node[step,below=of n1] (n2) {Optional: our trained page-orientation CNN};
+\draw[arrow] (n1) -- (n2);
+\node[step,below=of n2] (n3) {Our small-angle projection-based deskew};
+\draw[arrow] (n2) -- (n3);
+\node[step,below=of n3] (n4) {Optional flat-page perspective and image cleanup};
+\draw[arrow] (n3) -- (n4);
+\node[step,below=of n4] (n5) {Save the prepared image and transform details};
+\draw[arrow] (n4) -- (n5);
+\end{tikzpicture}\end{center}
+Only the optional orientation classifier needs weights. Deterministic preparation runs immediately. Curved-page flattening is a future extension.
+All coordinates refer to pixels on the prepared image. See the README and code walkthrough for examples.
+\newpage
+\begin{center}\LARGE\bfseries Increment 1: development\end{center}
+\begin{center}\begin{tikzpicture}[node distance=8mm]
+\node[step] (n0) {Labelled images and correction angles};
+\node[step,below=of n0] (n1) {Our three-convolution classifier};
+\draw[arrow] (n0) -- (n1);
+\node[step,below=of n1] (n2) {Cross-entropy and gradient updates};
+\draw[arrow] (n1) -- (n2);
+\node[step,below=of n2] (n3) {Validate on separate documents};
+\draw[arrow] (n2) -- (n3);
+\node[step,below=of n3] (n4) {Save our best orientation checkpoint};
+\draw[arrow] (n3) -- (n4);
+\end{tikzpicture}\end{center}
+Development uses labelled data; runtime does not require approval of predictions. Keep train, validation and final test documents separate.
+Software checks and tiny synthetic training runs do not establish real-document accuracy.
+\vfill\textit{Fully Self Made OCR: architectures and algorithms implemented in this project.}
+\end{document}

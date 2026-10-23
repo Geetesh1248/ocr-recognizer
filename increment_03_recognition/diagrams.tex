@@ -1,0 +1,45 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=20mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+\tikzset{step/.style={draw=blue!60!black,fill=blue!5,rounded corners,text width=10cm,align=center,minimum height=13mm,font=\small},arrow/.style={-{Latex},thick}}
+\begin{document}
+
+\begin{center}\LARGE\bfseries Increment 3: Our character recognizer\end{center}
+\textbf{Automatic runtime path}
+\begin{center}\begin{tikzpicture}[node distance=8mm]
+\node[step] (n0) {Our saved line crops};
+\node[step,below=of n0] (n1) {Resize height and retain sequence lengths};
+\draw[arrow] (n0) -- (n1);
+\node[step,below=of n1] (n2) {Our convolutional feature extractor};
+\draw[arrow] (n1) -- (n2);
+\node[step,below=of n2] (n3) {Our bidirectional LSTM sequence};
+\draw[arrow] (n2) -- (n3);
+\node[step,below=of n3] (n4) {Our linear character scores};
+\draw[arrow] (n3) -- (n4);
+\node[step,below=of n4] (n5) {Our CTC decoder returns text};
+\draw[arrow] (n4) -- (n5);
+\end{tikzpicture}\end{center}
+Blank tokens separate repeated letters. Padded positions are excluded from the sequence. Decoder scores are not calibrated accuracy probabilities.
+All coordinates refer to pixels on the prepared image. See the README and code walkthrough for examples.
+\newpage
+\begin{center}\LARGE\bfseries Increment 3: development\end{center}
+\begin{center}\begin{tikzpicture}[node distance=8mm]
+\node[step] (n0) {Line images with complete text labels};
+\node[step,below=of n0] (n1) {Our vocabulary and CTC-length checks};
+\draw[arrow] (n0) -- (n1);
+\node[step,below=of n1] (n2) {Our CNN, LSTM and character layer};
+\draw[arrow] (n1) -- (n2);
+\node[step,below=of n2] (n3) {CTC loss and gradient updates};
+\draw[arrow] (n2) -- (n3);
+\node[step,below=of n3] (n4) {Validation CER selects our checkpoint};
+\draw[arrow] (n3) -- (n4);
+\end{tikzpicture}\end{center}
+Development uses labelled data; runtime does not require approval of predictions. Keep train, validation and final test documents separate.
+Software checks and tiny synthetic training runs do not establish real-document accuracy.
+\vfill\textit{Fully Self Made OCR: architectures and algorithms implemented in this project.}
+\end{document}

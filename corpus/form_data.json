@@ -1,0 +1,44 @@
+{
+  "field_labels": [
+    "Date:", "TOTAL:", "Subtotal:", "Invoice #:", "Invoice Date:", "Invoice Number:",
+    "Name:", "Customer Name:", "Vendor:", "Supplier:", "Company:", "Attention:",
+    "Address:", "Street:", "City, State, Zip:", "State/Province:", "Zip Code:", "Postal Code:",
+    "Phone:", "Tel:", "Fax:", "Email:", "Contact:", "Website:",
+    "P.O. Number:", "PO #:", "Purchase Order:", "Order ID:", "Tracking No.:", "Account No.:",
+    "Amount Due:", "Total Amount:", "Balance Due:", "Amount Paid:", "Net Amount:",
+    "Tax:", "Sales Tax (8.25%):", "VAT Reg:", "Tax ID:", "SSN / EIN:", "Federal ID:",
+    "Terms:", "Payment Terms:", "Net 30 Days", "Due Date:", "Payable Upon Receipt",
+    "Description", "Item #", "Product Code", "Quantity", "Qty", "Unit Price", "Price", "Amount",
+    "Discount:", "Shipping & Handling:", "Freight:", "Misc Charges:", "Grand Total:",
+    "Signature:", "Authorized Signature:", "Date Signed:", "Approved By:", "Title:",
+    "Page:", "Page 1 of 1", "Remarks:", "Special Instructions:", "Notes:", "Comments:"
+  ],
+  "first_names": [
+    "James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda",
+    "William", "Elizabeth", "David", "Barbara", "Richard", "Susan", "Joseph", "Jessica",
+    "Thomas", "Sarah", "Charles", "Karen", "Christopher", "Nancy", "Daniel", "Lisa",
+    "Matthew", "Betty", "Anthony", "Margaret", "Mark", "Sandra", "Donald", "Ashley"
+  ],
+  "last_names": [
+    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
+    "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
+    "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White"
+  ],
+  "company_suffixes": [
+    "LLC", "Inc.", "Corp.", "Corporation", "Ltd.", "Limited", "Co.", "Company",
+    "Enterprises", "Industries", "Group", "Associates", "Holdings", "Services", "Technologies"
+  ],
+  "streets": [
+    "Main St.", "Broad St.", "Oak Ave.", "Maple Rd.", "Washington Blvd.", "Cedar Ln.",
+    "Elm St.", "Park Ave.", "Pine St.", "Commercial Way", "Industrial Pkwy", "Market St."
+  ],
+  "cities": [
+    "New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia",
+    "San Antonio", "San Diego", "Dallas", "Austin", "Seattle", "Denver", "Boston", "Atlanta"
+  ],
+  "states": [
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+    "IL", "IN", "IA", "KS", "KY", "LA", "MA", "MD", "MI", "MN",
+    "NY", "NC", "OH", "PA", "TN", "TX", "VA", "WA", "WI"
+  ]
+}

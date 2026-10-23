@@ -1,0 +1,45 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=20mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+\tikzset{step/.style={draw=blue!60!black,fill=blue!5,rounded corners,text width=10cm,align=center,minimum height=13mm,font=\small},arrow/.style={-{Latex},thick}}
+\begin{document}
+
+\begin{center}\LARGE\bfseries Increment 4: Our reading-order algorithm\end{center}
+\textbf{Automatic runtime path}
+\begin{center}\begin{tikzpicture}[node distance=8mm]
+\node[step] (n0) {Recognized lines with pixel rectangles};
+\node[step,below=of n0] (n1) {Find whitespace intervals};
+\draw[arrow] (n0) -- (n1);
+\node[step,below=of n1] (n2) {Recursively divide sections and columns};
+\draw[arrow] (n1) -- (n2);
+\node[step,below=of n2] (n3) {Order the line groups};
+\draw[arrow] (n2) -- (n3);
+\node[step,below=of n3] (n4) {Group nearby lines into paragraphs};
+\draw[arrow] (n3) -- (n4);
+\node[step,below=of n4] (n5) {Mark likely headings and retain line IDs};
+\draw[arrow] (n4) -- (n5);
+\end{tikzpicture}\end{center}
+This is our geometric implementation. It does not call a document-layout model. Difficult overlapping layouts may need a learned classifier later.
+All coordinates refer to pixels on the prepared image. See the README and code walkthrough for examples.
+\newpage
+\begin{center}\LARGE\bfseries Increment 4: development\end{center}
+\begin{center}\begin{tikzpicture}[node distance=8mm]
+\node[step] (n0) {Existing page and reading-order labels};
+\node[step,below=of n0] (n1) {Run the geometric rules};
+\draw[arrow] (n0) -- (n1);
+\node[step,below=of n1] (n2) {Compare actual order and paragraph groups};
+\draw[arrow] (n1) -- (n2);
+\node[step,below=of n2] (n3) {Tune only on validation documents};
+\draw[arrow] (n2) -- (n3);
+\node[step,below=of n3] (n4) {Measure final performance on held-out pages};
+\draw[arrow] (n3) -- (n4);
+\end{tikzpicture}\end{center}
+Development uses labelled data; runtime does not require approval of predictions. Keep train, validation and final test documents separate.
+Software checks and tiny synthetic training runs do not establish real-document accuracy.
+\vfill\textit{Fully Self Made OCR: architectures and algorithms implemented in this project.}
+\end{document}

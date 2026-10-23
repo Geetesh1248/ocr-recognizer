@@ -1,0 +1,65 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python cache, bytecode, and distribution
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Data, checkpoints, and generated output artifacts
+datasets/
+outputs/
+models/*.pt
+models/*.pth
+models/*.bin
+models/*.history.json
+models/*.tmp
+models/smoke*/
+!models/.gitkeep
+
+# Archives and binary packages
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tgz
+
+# Scratch, temporary and test output images
+scratch/
+scratch_*
+temp_*
+*.tmp
+*.log
+*.png
+
+# Secrets, keys, and environment files
+.env
+.env.*
+*.pem
+*.key
+*.cert
+
+# IDE / Editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Antigravity and OS artifacts
+.gemini/
+.DS_Store
+Thumbs.db

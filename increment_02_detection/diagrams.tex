@@ -1,0 +1,50 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=20mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+\tikzset{step/.style={draw=blue!60!black,fill=blue!5,rounded corners,text width=10cm,align=center,minimum height=13mm,font=\small},arrow/.style={-{Latex},thick}}
+\begin{document}
+
+\begin{center}\LARGE\bfseries Increment 2: Our trainable text detector\end{center}
+\textbf{Automatic runtime path}
+\begin{center}\begin{tikzpicture}[node distance=8mm]
+\node[step] (n0) {Prepared page image};
+\node[step,below=of n0] (n1) {Letterbox and normalize pixels};
+\draw[arrow] (n0) -- (n1);
+\node[step,below=of n1] (n2) {Our encoder, skip connections and decoder};
+\draw[arrow] (n1) -- (n2);
+\node[step,below=of n2] (n3) {Text probability map};
+\draw[arrow] (n2) -- (n3);
+\node[step,below=of n3] (n4) {Threshold, contours, expand and remove duplicates};
+\draw[arrow] (n3) -- (n4);
+\node[step,below=of n4] (n5) {Perspective crops and optional own line classifier};
+\draw[arrow] (n4) -- (n5);
+\end{tikzpicture}\end{center}
+Choose either word weights or line weights using its separate configuration.
+Both use this architecture; line labels are derived by grouping FUNSD words within
+entities and rows, then applying the saved page transform. Word and line weights
+are trained separately. The line labels can contain fragments and are not native
+line ground truth.
+The detector needs our trained checkpoint. Initial random weights are not a usable OCR result. This baseline uses a fixed threshold, not a learned DB threshold branch.
+All coordinates refer to pixels on the prepared image. See the README and code walkthrough for examples.
+\newpage
+\begin{center}\LARGE\bfseries Increment 2: development\end{center}
+\begin{center}\begin{tikzpicture}[node distance=8mm]
+\node[step] (n0) {Page images and labelled text polygons};
+\node[step,below=of n0] (n1) {Our shrunk masks and valid-pixel mask};
+\draw[arrow] (n0) -- (n1);
+\node[step,below=of n1] (n2) {Our segmentation-network logits};
+\draw[arrow] (n1) -- (n2);
+\node[step,below=of n2] (n3) {Balanced binary cross-entropy plus Dice loss};
+\draw[arrow] (n2) -- (n3);
+\node[step,below=of n3] (n4) {Validate and save the best checkpoint};
+\draw[arrow] (n3) -- (n4);
+\end{tikzpicture}\end{center}
+Development uses labelled data; runtime does not require approval of predictions. Keep train, validation and final test documents separate.
+Software checks and tiny synthetic training runs do not establish real-document accuracy.
+\vfill\textit{Fully Self Made OCR: architectures and algorithms implemented in this project.}
+\end{document}

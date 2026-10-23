@@ -1,0 +1,7 @@
+# Python 3.10-3.12 x64. No ready-made OCR package or pretrained weights.
+torch>=2.0.0
+numpy>=1.26.0
+Pillow>=10.0.0,<=11.3.0
+opencv-contrib-python>=4.8.0
+pypdfium2>=4.30.0
+pyclipper>=1.4.0

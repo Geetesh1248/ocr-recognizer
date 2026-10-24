@@ -24,7 +24,14 @@ def run(source, output, until, config, selected=None, rotation=0):
         detector = Detector(ROOT / config["detector"]["checkpoint"], config["detector"])
     if until >= 3:
         from increment_03_recognition.inference import Recognizer
-        recognizer = Recognizer(ROOT / config["recognizer"]["checkpoint"])
+        rec_cfg = config.get("recognizer", {})
+        recognizer = Recognizer(
+            ROOT / rec_cfg["checkpoint"],
+            decoder=rec_cfg.get("decoder", "greedy"),
+            beam_width=rec_cfg.get("beam_width", 5),
+            lm_weight=rec_cfg.get("lm_weight", 0.0),
+            lm_corpus_dir=ROOT / rec_cfg.get("lm_corpus_dir", "corpus") if rec_cfg.get("lm_corpus_dir") else None,
+        )
     output = Path(output).resolve()
     if output.exists() and any(output.iterdir()):
         raise ValueError("Choose a fresh or empty output folder")

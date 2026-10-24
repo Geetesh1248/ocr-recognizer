@@ -45,6 +45,7 @@ temp_*
 *.tmp
 *.log
 *.png
+!examples/*.png
 
 # Secrets, keys, and environment files
 .env

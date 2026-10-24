@@ -1,8 +1,62 @@
 # Validation record
 
-## Phase 3 update — Upgraded Recognizer, CTC Beam Search & GPU Training Infrastructure
+## Phase 3 Completion — Three-Stage Recognizer Curriculum & Held-Out Test Evaluation
 
-All 55 tests pass and the source/documentation audit passes (`python check_project.py`).
+All 57 tests pass (`python -m unittest discover -s tests`) and the full source/JSON audit passes (`python check_project.py`).
+The recognizer (`TextRecognizerV2`, 5,565,981 parameters, ResNet + 2-layer BiLSTM + CTC loss) was trained entirely from random weights through the 3-stage curriculum on a Kaggle Tesla T4 GPU with zero pretrained weights or external OCR engines.
+
+### 1. Three-Stage Curriculum Training Summary
+
+| Curriculum Stage | Training Data Composition | Target Epochs | Completed Epoch | Initial LR | Final Train Loss | Best Val CER | Early Stopping Criterion |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Stage A** | 100% on-the-fly streaming synthetic crops (50k/epoch, training fonts only) | 30 | 19 | $1.00\times 10^{-3}$ | 0.11614 | **0.02987** | Patience=5 on Synthetic Unseen-Font Val CER |
+| **Stage B** | 50% streaming synthetic (37,715/ep) + 50% real FUNSD train crops (37,715) | 25 | 19 | $5.00\times 10^{-4}$ | 0.11614 | **0.04132** | Patience=5 on Real FUNSD Val CER |
+| **Stage C** | 100% real FUNSD train crops (37,715 ground truth words & lines) | 15 | 7 | $1.00\times 10^{-4}$ | 0.00976 | **0.04135** | Patience=5 on Real FUNSD Val CER |
+
+### 2. Validation Split Evaluation (6,346 Samples)
+
+Evaluated on `datasets/recognition_val.jsonl` (2,000 synthetic crops with unseen validation fonts + 4,346 real FUNSD crops):
+
+| Evaluation Subset | Sample Count | Stage B Best (`recognizer_stageB_best.pt`) | Stage C Best / Default (`models/recognizer.pt`) |
+| :--- | :---: | :---: | :---: |
+| **Synthetic Val (Unseen Fonts)** | 2,000 | CER: **0.0227** \| WER: **0.0753** | CER: **0.0238** \| WER: **0.0817** |
+| **Real FUNSD Val (Combined)** | 4,346 | CER: **0.0413** \| WER: **0.1728** | CER: **0.0413** \| WER: **0.1697** |
+| **Real FUNSD GT Word Crops** | 3,202 | CER: **0.0365** \| WER: **0.1230** | CER: **0.0370** \| WER: **0.1249** |
+| **Real FUNSD GT Line Crops** | 1,144 | CER: **0.0456** \| WER: **0.2227** | CER: **0.0452** \| WER: **0.2146** |
+
+**Decoder Tuning (Greedy CTC vs. Beam Search + Character 4-gram LM)**:
+- Baseline Greedy CTC: CER = **0.0362**, WER = **0.1570** (on real validation test slice).
+- Beam Search (`width=5`, `lm_weight=0.20`): CER = **0.0367**, WER = **0.1597**.
+- Beam Search (`width=5`, `lm_weight=0.40`): CER = **0.0365**, WER = **0.1570**.
+- **Conclusion**: Greedy CTC is faster and optimal on structured form fields, while Beam Search provides language smoothing. Stage C was copied to `models/recognizer.pt` as the default production model due to superior document-level line recognition (WER 21.46% vs 22.27%) and real overall WER (16.97% vs 17.28%).
+
+### 3. Final Held-Out Real FUNSD Test Split Evaluation (11,336 Samples)
+
+Executed **once** on `datasets/recognition_test.jsonl` with `--final-test` using `models/recognizer.pt` (`outputs/test_metrics_final.json`):
+
+| Test Set Breakdown | Sample Count | Total Characters | Total Words | Final Greedy CER | Final Greedy WER |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Real FUNSD Test (Combined)** | **11,336** | **65,856** | **11,885** | **0.0736 (7.36%)** | **0.2633 (26.33%)** |
+| **Real FUNSD GT Word Crops** | **8,651** | **37,707** | **8,651** | **0.0709 (7.09%)** | **0.2171 (21.71%)** |
+| **Real FUNSD GT Line Crops** | **2,685** | **28,149** | **3,234** | **0.0761 (7.61%)** | **0.3095 (30.95%)** |
+
+**Held-Out Test CER by Character Length Buckets**:
+- Length 1–5: 5,967 samples | CER = **0.0829**
+- Length 6–10: 3,511 samples | CER = **0.0701**
+- Length 11–20: 1,203 samples | CER = **0.0650**
+- Length 21+: 655 samples | CER = **0.0754**
+
+**Top 10 Character Confusions on Held-Out Test Set**:
+1. `' ' -> <deleted/sub>`: 165 times
+2. `'.' -> <deleted/sub>`: 145 times
+3. `'o' -> <deleted/sub>`: 139 times
+4. `'i' -> <deleted/sub>`: 134 times
+5. `'t' -> <deleted/sub>`: 123 times
+6. `'n' -> <deleted/sub>`: 121 times
+7. `'e' -> <deleted/sub>`: 120 times
+8. `'a' -> <deleted/sub>`: 109 times
+9. `'r' -> <deleted/sub>`: 96 times
+10. `'I' -> <deleted/sub>`: 95 times
 Seven new unit tests in `tests/test_recognizer_v2.py` verify:
 1. `test_model_v2_shape`: TextRecognizerV2 forward output shape `(T, B, 93)` with 4x horizontal downsampling.
 2. `test_model_v2_gradients`: CTC loss backward pass produces real non-zero gradients on linear layers and conv stem.

@@ -25,6 +25,7 @@ import json
 import math
 import os
 from pathlib import Path
+import random
 import sys
 import time
 from typing import Dict, List, Tuple
@@ -38,6 +39,49 @@ from checkpoints import load
 from increment_03_recognition.model import build_recognizer
 from increment_03_recognition.data import Vocabulary, line_tensor, minimum_ctc_steps, collate
 from increment_03_recognition.decoder import greedy_ctc, beam_search_ctc, CharNgramLM
+
+
+class DeterministicSyntheticValDataset(Dataset):
+    """Deterministic synthetic validation dataset using unseen validation font families.
+    Used when static synthetic val crops are not stored on disk.
+    Pre-renders with a fixed seed so CER is completely consistent across runs.
+    """
+
+    def __init__(self, count: int, corpus_dir: Path, fonts_dir: Path, config_path: Path,
+                 vocab: Vocabulary, height: int = 32, max_width: int = 1024, seed: int = 42):
+        self.vocab = vocab
+        self.height = height
+        self.max_width = max_width
+        from make_recognition_data import CorpusManager, FontManager, render_synthetic_image
+        rng = random.Random(seed)
+        corpus_mgr = CorpusManager(corpus_dir, config_path)
+        font_mgr = FontManager(fonts_dir)
+        self.samples = []
+        for _ in range(count):
+            text = corpus_mgr.sample_text()
+            if not text:
+                text = "validation sample"
+            val_font = rng.choice(font_mgr.val_fonts)
+            try:
+                img = render_synthetic_image(text, val_font, target_height=self.height, max_width=self.max_width)
+                tokens = self.vocab.encode(text)
+                req_steps = minimum_ctc_steps(tokens)
+                tensor, steps = line_tensor(img, self.height, self.max_width)
+                if steps < req_steps:
+                    pad_needed = (req_steps - steps + 1) * 4
+                    padded = torch.ones(1, self.height, tensor.shape[-1] + pad_needed)
+                    padded[:, :, :tensor.shape[-1]] = tensor
+                    tensor = padded
+                    steps = tensor.shape[-1] // 4
+                self.samples.append((tensor, torch.tensor(tokens, dtype=torch.long), steps, text))
+            except Exception:
+                continue
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, idx: int):
+        return self.samples[idx]
 
 
 class EvalDataset(Dataset):
@@ -57,12 +101,22 @@ class EvalDataset(Dataset):
         label = rec["text"]
         tokens = self.vocab.encode(label)
 
-        # Resolve image path
-        img_path = Path(rec["image"])
-        if not img_path.is_file():
-            img_path = ROOT / "datasets" / rec["image"]
-        if not img_path.is_file():
-            img_path = ROOT / rec["image"]
+        # Resolve image path across ROOT, datasets/, and current directory
+        candidates = [
+            Path(rec["image"]),
+            ROOT / "datasets" / rec["image"],
+            ROOT / rec["image"],
+            Path.cwd() / "datasets" / rec["image"],
+            Path.cwd() / rec["image"]
+        ]
+        img_path = None
+        for cand in candidates:
+            if cand.is_file():
+                img_path = cand
+                break
+
+        if img_path is None:
+            raise FileNotFoundError(f"Crop image file not found: {rec['image']} (tried under {ROOT} and {Path.cwd()})")
 
         img = image_read(img_path)
         tensor, steps = line_tensor(img, self.height, self.max_width)
@@ -79,7 +133,7 @@ class EvalDataset(Dataset):
 
 def evaluate_records(
     model: torch.nn.Module,
-    records: List[dict],
+    records_or_dataset,
     vocab: Vocabulary,
     alphabet: str,
     device: str,
@@ -90,11 +144,17 @@ def evaluate_records(
     lm_weight: float = 0.0,
     lm: CharNgramLM = None
 ) -> dict:
-    """Run full evaluation on records and compute granular metrics and error analysis."""
-    if not records:
-        return {"count": 0, "cer": 0.0, "wer": 0.0}
+    """Run full evaluation on records or a Dataset and compute granular metrics and error analysis."""
+    if isinstance(records_or_dataset, Dataset):
+        dataset = records_or_dataset
+        if len(dataset) == 0:
+            return {"count": 0, "cer": 0.0, "wer": 0.0}
+    else:
+        records = records_or_dataset
+        if not records:
+            return {"count": 0, "cer": 0.0, "wer": 0.0}
+        dataset = EvalDataset(records, vocab, height=height, max_width=max_width)
 
-    dataset = EvalDataset(records, vocab, height=height, max_width=max_width)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=collate, num_workers=0)
 
     model.eval()
@@ -182,6 +242,10 @@ def evaluate_records(
     # Top confusions
     sorted_confusions = sorted(confusions.items(), key=lambda x: x[1], reverse=True)[:20]
     results["top_confusions"] = [{"char": k[0], "error_type": k[1], "count": v} for k, v in sorted_confusions]
+    results["gts"] = all_gts
+    results["preds_greedy"] = all_preds_greedy
+    if beam_width > 1:
+        results["preds_beam"] = all_preds_beam
 
     return results
 
@@ -268,13 +332,40 @@ def main():
 
         # (a) Synthetic Val (Unseen Fonts)
         print(f"\n[Subset A] Synthetic Val (Unseen Fonts) - {len(synth_unseen):,} samples:")
-        res_synth = evaluate_records(model, synth_unseen, vocab, alphabet, device, height, max_width,
-                                     args.batch_size, args.beam_width, args.lm_weight, lm)
+        if not synth_unseen:
+            res_synth = {"count": 0, "cer_greedy": 0.0, "wer_greedy": 0.0}
+            print("  No synthetic validation samples in selected slice.")
+        else:
+            synth_files_exist = False
+            sample_rel = synth_unseen[0]["image"]
+            for cand in [Path(sample_rel), ROOT / "datasets" / sample_rel, ROOT / sample_rel, Path.cwd() / "datasets" / sample_rel, Path.cwd() / sample_rel]:
+                if cand.is_file():
+                    synth_files_exist = True
+                    break
+
+            if synth_files_exist:
+                res_synth = evaluate_records(model, synth_unseen, vocab, alphabet, device, height, max_width,
+                                             args.batch_size, args.beam_width, args.lm_weight, lm)
+            else:
+                print("  [Fallback] Static synthetic val images not found on disk; generating deterministic unseen-font val crops...")
+                synth_val_count = min(len(synth_unseen), 500)
+                val_synth_ds = DeterministicSyntheticValDataset(
+                    count=synth_val_count,
+                    corpus_dir=ROOT / "corpus",
+                    fonts_dir=ROOT / "fonts",
+                    config_path=ROOT / "config.json",
+                    vocab=vocab,
+                    height=height,
+                    max_width=max_width,
+                    seed=42
+                )
+                res_synth = evaluate_records(model, val_synth_ds, vocab, alphabet, device, height, max_width,
+                                             args.batch_size, args.beam_width, args.lm_weight, lm)
         print(f"  Greedy CER: {res_synth.get('cer_greedy', 0.0):.4f} | Greedy WER: {res_synth.get('wer_greedy', 0.0):.4f}")
         if args.beam_width > 1:
             print(f"  Beam   CER: {res_synth.get('cer_beam', 0.0):.4f} | Beam   WER: {res_synth.get('wer_beam', 0.0):.4f}")
 
-        # (b) Real FUNSD Val (All)
+        # (b) Real FUNSD Val (Combined)
         print(f"\n[Subset B] Real FUNSD Val (Combined) - {len(real_all):,} samples:")
         res_real = evaluate_records(model, real_all, vocab, alphabet, device, height, max_width,
                                     args.batch_size, args.beam_width, args.lm_weight, lm)
@@ -282,23 +373,64 @@ def main():
         if args.beam_width > 1:
             print(f"  Beam   CER: {res_real.get('cer_beam', 0.0):.4f} | Beam   WER: {res_real.get('wer_beam', 0.0):.4f}")
 
+        # Compute granular real subsets efficiently from the single combined forward pass
+        def compute_subset_metrics(indices):
+            if not indices:
+                return {"count": 0, "total_characters": 0, "total_words": 0, "cer_greedy": 0.0, "wer_greedy": 0.0}
+            sub_gts = [res_real["gts"][i] for i in indices]
+            sub_preds_greedy = [res_real["preds_greedy"][i] for i in indices]
+            sub_chars = sum(len(g) for g in sub_gts)
+            sub_words = sum(len(g.split()) for g in sub_gts)
+            c_err_g = sum(distance(g, p) for g, p in zip(sub_gts, sub_preds_greedy))
+            w_err_g = sum(distance(g.split(), p.split()) for g, p in zip(sub_gts, sub_preds_greedy))
+            out = {
+                "count": len(indices),
+                "total_characters": sub_chars,
+                "total_words": sub_words,
+                "cer_greedy": round(c_err_g / max(1, sub_chars), 5),
+                "wer_greedy": round(w_err_g / max(1, sub_words), 5)
+            }
+            if args.beam_width > 1 and "preds_beam" in res_real and res_real["preds_beam"]:
+                sub_preds_beam = [res_real["preds_beam"][i] for i in indices]
+                c_err_b = sum(distance(g, p) for g, p in zip(sub_gts, sub_preds_beam))
+                w_err_b = sum(distance(g.split(), p.split()) for g, p in zip(sub_gts, sub_preds_beam))
+                out["cer_beam"] = round(c_err_b / max(1, sub_chars), 5)
+                out["wer_beam"] = round(w_err_b / max(1, sub_words), 5)
+            return out
+
+        det_indices = [i for i, r in enumerate(real_all) if "det_" in r.get("image", "")]
+        word_indices = [i for i, r in enumerate(real_all) if "word_" in r.get("image", "")]
+        line_indices = [i for i, r in enumerate(real_all) if "line_" in r.get("image", "")]
+
         # (b-det) Real FUNSD Detector Crops
-        print(f"\n[Subset B-det] Real-Val Detector Crops (det_*) - {len(real_det):,} samples:")
-        res_det = evaluate_records(model, real_det, vocab, alphabet, device, height, max_width,
-                                   args.batch_size, args.beam_width, args.lm_weight, lm)
+        print(f"\n[Subset B-det] Real-Val Detector Crops (det_*) - {len(det_indices):,} samples:")
+        res_det = compute_subset_metrics(det_indices)
         print(f"  Greedy CER: {res_det.get('cer_greedy', 0.0):.4f} | Greedy WER: {res_det.get('wer_greedy', 0.0):.4f}")
+        if args.beam_width > 1 and "cer_beam" in res_det:
+            print(f"  Beam   CER: {res_det.get('cer_beam', 0.0):.4f} | Beam   WER: {res_det.get('wer_beam', 0.0):.4f}")
 
         # (b-word) Real FUNSD Word Crops
-        print(f"\n[Subset B-word] Real-Val GT Word Crops - {len(real_word):,} samples:")
-        res_word = evaluate_records(model, real_word, vocab, alphabet, device, height, max_width,
-                                    args.batch_size, args.beam_width, args.lm_weight, lm)
+        print(f"\n[Subset B-word] Real-Val GT Word Crops - {len(word_indices):,} samples:")
+        res_word = compute_subset_metrics(word_indices)
         print(f"  Greedy CER: {res_word.get('cer_greedy', 0.0):.4f} | Greedy WER: {res_word.get('wer_greedy', 0.0):.4f}")
+        if args.beam_width > 1 and "cer_beam" in res_word:
+            print(f"  Beam   CER: {res_word.get('cer_beam', 0.0):.4f} | Beam   WER: {res_word.get('wer_beam', 0.0):.4f}")
 
         # (b-line) Real FUNSD Line Crops
-        print(f"\n[Subset B-line] Real-Val GT Line Crops - {len(real_line):,} samples:")
-        res_line = evaluate_records(model, real_line, vocab, alphabet, device, height, max_width,
-                                    args.batch_size, args.beam_width, args.lm_weight, lm)
+        print(f"\n[Subset B-line] Real-Val GT Line Crops - {len(line_indices):,} samples:")
+        res_line = compute_subset_metrics(line_indices)
         print(f"  Greedy CER: {res_line.get('cer_greedy', 0.0):.4f} | Greedy WER: {res_line.get('wer_greedy', 0.0):.4f}")
+        if args.beam_width > 1 and "cer_beam" in res_line:
+            print(f"  Beam   CER: {res_line.get('cer_beam', 0.0):.4f} | Beam   WER: {res_line.get('wer_beam', 0.0):.4f}")
+
+        # Clean up large prediction arrays before saving report
+        res_real.pop("gts", None)
+        res_real.pop("preds_greedy", None)
+        res_real.pop("preds_beam", None)
+        if "res_synth" in locals() and isinstance(res_synth, dict):
+            res_synth.pop("gts", None)
+            res_synth.pop("preds_greedy", None)
+            res_synth.pop("preds_beam", None)
 
         report["synthetic_unseen_val"] = res_synth
         report["real_funsd_val"] = res_real
@@ -318,15 +450,83 @@ def main():
     else:
         # Final test split
         print("\n" + "=" * 80)
-        print("FINAL EVALUATION: TEST SPLIT (GUARD PASSED)")
+        print("FINAL EVALUATION: HELD-OUT TEST SPLIT (GUARD PASSED)")
         print("=" * 80)
         res_test = evaluate_records(model, all_records, vocab, alphabet, device, height, max_width,
                                     args.batch_size, args.beam_width, args.lm_weight, lm)
-        print(f"Test Set Total Samples: {len(all_records):,}")
+        print(f"\n[Test Set Combined] Real FUNSD Test - {len(all_records):,} samples:")
         print(f"  Greedy CER: {res_test.get('cer_greedy', 0.0):.4f} | Greedy WER: {res_test.get('wer_greedy', 0.0):.4f}")
         if args.beam_width > 1:
             print(f"  Beam   CER: {res_test.get('cer_beam', 0.0):.4f} | Beam   WER: {res_test.get('wer_beam', 0.0):.4f}")
+
+        # Compute granular test subsets efficiently from the single combined forward pass
+        def compute_test_subset_metrics(indices):
+            if not indices:
+                return {"count": 0, "total_characters": 0, "total_words": 0, "cer_greedy": 0.0, "wer_greedy": 0.0}
+            sub_gts = [res_test["gts"][i] for i in indices]
+            sub_preds_greedy = [res_test["preds_greedy"][i] for i in indices]
+            sub_chars = sum(len(g) for g in sub_gts)
+            sub_words = sum(len(g.split()) for g in sub_gts)
+            c_err_g = sum(distance(g, p) for g, p in zip(sub_gts, sub_preds_greedy))
+            w_err_g = sum(distance(g.split(), p.split()) for g, p in zip(sub_gts, sub_preds_greedy))
+            out = {
+                "count": len(indices),
+                "total_characters": sub_chars,
+                "total_words": sub_words,
+                "cer_greedy": round(c_err_g / max(1, sub_chars), 5),
+                "wer_greedy": round(w_err_g / max(1, sub_words), 5)
+            }
+            if args.beam_width > 1 and "preds_beam" in res_test and res_test["preds_beam"]:
+                sub_preds_beam = [res_test["preds_beam"][i] for i in indices]
+                c_err_b = sum(distance(g, p) for g, p in zip(sub_gts, sub_preds_beam))
+                w_err_b = sum(distance(g.split(), p.split()) for g, p in zip(sub_gts, sub_preds_beam))
+                out["cer_beam"] = round(c_err_b / max(1, sub_chars), 5)
+                out["wer_beam"] = round(w_err_b / max(1, sub_words), 5)
+            return out
+
+        det_indices = [i for i, r in enumerate(all_records) if "det_" in r.get("image", "")]
+        word_indices = [i for i, r in enumerate(all_records) if "word_" in r.get("image", "")]
+        line_indices = [i for i, r in enumerate(all_records) if "line_" in r.get("image", "")]
+
+        # (a) Real FUNSD Detector Crops (if any)
+        print(f"\n[Test Set Detector Crops (det_*)] - {len(det_indices):,} samples:")
+        res_det = compute_test_subset_metrics(det_indices)
+        print(f"  Greedy CER: {res_det.get('cer_greedy', 0.0):.4f} | Greedy WER: {res_det.get('wer_greedy', 0.0):.4f}")
+        if args.beam_width > 1 and "cer_beam" in res_det:
+            print(f"  Beam   CER: {res_det.get('cer_beam', 0.0):.4f} | Beam   WER: {res_det.get('wer_beam', 0.0):.4f}")
+
+        # (b) Real FUNSD Word Crops
+        print(f"\n[Test Set GT Word Crops (word_*)] - {len(word_indices):,} samples:")
+        res_word = compute_test_subset_metrics(word_indices)
+        print(f"  Greedy CER: {res_word.get('cer_greedy', 0.0):.4f} | Greedy WER: {res_word.get('wer_greedy', 0.0):.4f}")
+        if args.beam_width > 1 and "cer_beam" in res_word:
+            print(f"  Beam   CER: {res_word.get('cer_beam', 0.0):.4f} | Beam   WER: {res_word.get('wer_beam', 0.0):.4f}")
+
+        # (c) Real FUNSD Line Crops
+        print(f"\n[Test Set GT Line Crops (line_*)] - {len(line_indices):,} samples:")
+        res_line = compute_test_subset_metrics(line_indices)
+        print(f"  Greedy CER: {res_line.get('cer_greedy', 0.0):.4f} | Greedy WER: {res_line.get('wer_greedy', 0.0):.4f}")
+        if args.beam_width > 1 and "cer_beam" in res_line:
+            print(f"  Beam   CER: {res_line.get('cer_beam', 0.0):.4f} | Beam   WER: {res_line.get('wer_beam', 0.0):.4f}")
+
+        print("\n" + "-" * 80)
+        print("CER by Crop Length (Test Set):")
+        for l_bucket, l_data in res_test.get("cer_by_length", {}).items():
+            print(f"  Length {l_bucket:<6}: {l_data['count']:>5} samples | CER = {l_data['cer']:.4f}")
+
+        print("\nTop Character Confusions (Test Set):")
+        for conf in res_test.get("top_confusions", [])[:10]:
+            print(f"  '{conf['char']}' -> {conf['error_type']}: {conf['count']} times")
+
+        # Clean up large prediction arrays before saving report
+        res_test.pop("gts", None)
+        res_test.pop("preds_greedy", None)
+        res_test.pop("preds_beam", None)
+
         report["real_funsd_test"] = res_test
+        report["real_test_det_crops"] = res_det
+        report["real_test_word_crops"] = res_word
+        report["real_test_line_crops"] = res_line
 
     if args.output:
         save_json(args.output, report)

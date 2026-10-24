@@ -70,18 +70,18 @@ python3 cli.py run "path/to/paper.pdf" --until 5 --output outputs/complete_ocr
 
 ## What has actually been verified?
 
-See [VALIDATION.md](VALIDATION.md). All 55 unit tests pass (`python -m unittest discover`) and the code audit passes (`python check_project.py`).
-Tests exercise image algorithms, network gradients, CTC decoding, tiny training runs, checkpoint loading, ResNet-BiLSTM V2 recognizer architecture, CTC beam search, character n-gram LM, and the combined processing path. Synthetic checks do not establish accuracy on real documents.
-On the 50 official FUNSD test pages, our trained 20-epoch word detector (`models/detector_20epochs.pt`) achieves:
-- **Precision**: 77.3% (`0.7731`)
-- **Recall**: 61.5% (`0.6147`)
-- **F1 Score**: 68.5% (`0.6848`) at polygon IoU 0.5 (from `outputs/funsd_20epochs_metrics.json`).
+See [VALIDATION.md](VALIDATION.md). All 57 unit tests pass (`python -m unittest discover -s tests`) and the code audit passes (`python check_project.py`).
+Tests exercise image algorithms, network gradients, CTC decoding, tiny training runs, checkpoint loading, ResNet-BiLSTM V2 recognizer architecture, CTC beam search, character n-gram LM, and the combined processing path.
 
-Phase 3 recognizer upgrade adds:
-- `TextRecognizerV2` (5,565,981 parameters, ResNet + 2-layer BiLSTM + CTC loss).
-- CTC prefix beam search with hierarchical `CharNgramLM` in `increment_03_recognition/decoder.py`.
-- Resumable GPU training script with 3-stage curriculum (`train_recognizer_gpu.py`).
-- Granular recognizer evaluation script (`evaluate_recognizer.py`) with `--final-test` guard.
-- Kaggle bundle (`outputs/kaggle_recognizer_bundle.zip`, 161.25 MB) and step-by-step instructions in [KAGGLE_GUIDE.md](KAGGLE_GUIDE.md).
+On the 50 official FUNSD test pages:
+- **Trained 20-Epoch Word Detector** (`models/detector_20epochs.pt`):
+  - **Precision**: 77.3% (`0.7731`)
+  - **Recall**: 61.5% (`0.6147`)
+  - **F1 Score**: 68.5% (`0.6848`) at polygon IoU 0.5 (from `outputs/funsd_20epochs_metrics.json`).
+- **Trained Three-Stage Text Recognizer** (`models/recognizer.pt`):
+  - **Architecture**: `TextRecognizerV2` (5,565,981 parameters, ResNet + 2-layer BiLSTM + CTC loss).
+  - **Real FUNSD Validation CER**: **4.13%** (`0.0413`), WER: **16.97%** (`0.1697`).
+  - **Final Held-Out Real FUNSD Test CER**: **7.36%** (`0.0736`), WER: **26.33%** (`0.2633`) across 11,336 real test crops (8,651 word crops at **7.09% CER** and 2,685 line crops at **7.61% CER**).
+  - Evaluated strictly once under `--final-test` guard (`outputs/test_metrics_final.json`).
 
 Each increment includes a plain-language README, `CHECKS.md`, a Python code walkthrough and a standalone `diagrams.tex`. [PROJECT_GUIDE.md](PROJECT_GUIDE.md) explains the full flow and the root files. [REFERENCES.md](REFERENCES.md) identifies the methods that informed the implementation.

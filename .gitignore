@@ -26,6 +26,7 @@ models/*.pt
 models/*.pth
 models/*.bin
 models/*.history.json
+models/*.json
 models/*.tmp
 models/smoke*/
 !models/.gitkeep
